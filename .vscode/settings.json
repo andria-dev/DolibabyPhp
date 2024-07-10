@@ -1,0 +1,5 @@
+{
+    // "python.analysis.indexing": true,
+    "python.analysis.strictMode": true,
+    "python.strictMode": true,
+}
