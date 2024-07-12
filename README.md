@@ -21,7 +21,16 @@ Usage: python -m dolibabyphp [OPTIONS] TARGET_URL USERNAME PASSWORD COMMAND
   will be deleted.
 
 Options:
-  --help  Show this message and exit.
+  --site-name TEXT       Specify a name to use when creating a site on the
+                         target. Defaults to UUIDv4.
+  --page-name TEXT       Specify a name to use when creating a page on the
+                         target. Defaults to UUIDv4.
+  --page-title TEXT      Specify a title for the page. Defaults to the page
+                         name.
+  --proxy TEXT           Specify a proxy URL for use in all requests.
+  -o, --output FILENAME  Specify a file path to output the results of the
+                         payload to. Defaults to stdout.
+  --help                 Show this message and exit.
 
 Commands:
   bash-reverse-shell     Spawns a bash shell on the victim machine and...

