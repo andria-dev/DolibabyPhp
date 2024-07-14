@@ -37,6 +37,8 @@ soupsieve==2.5
     # via beautifulsoup4
 structlog==24.2.0
     # via dolibabyphp
+tenacity==8.5.0
+    # via dolibabyphp
 types-requests==2.32.0.20240622
 urllib3==2.2.2
     # via requests

