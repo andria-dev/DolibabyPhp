@@ -3,6 +3,7 @@ name = "DolibabyPhp"
 version = "0.1.0"
 description = "Add your description here"
 authors = [{ name = "Andria Brown", email = "andria_girl@pm.me" }]
+license = { file = "LICENSE" }
 dependencies = [
     "furl>=2.1.3",
     "bs4>=0.0.2",
