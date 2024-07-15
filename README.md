@@ -8,6 +8,7 @@ You can either install the package from the PyPi repository with `pip` or `git c
 
 ```shell
 pip install dolibabyphp
+dolibabyphp -h
 ```
 
 ## Usage
