@@ -5,5 +5,5 @@ if __name__ == "__main__":
     try:
         cli()
     except Exception as error:
-        log.exception(error)
+        log.warn(error)
         exit(1)

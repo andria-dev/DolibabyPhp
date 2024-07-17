@@ -65,18 +65,3 @@ class CleanupTriggerError(TriggerException):
         super().__init__(
             f"Unable to trigger the cleanup script (HTTP status code {response.status_code}). Please try again in a minute."
         )
-
-
-class CleanupNoOutputError(DolibabyException):
-    def __init__(self):
-        super().__init__("Cleanup for the exploit did not return any output.")
-
-
-class CleanupInvalidExitCodeError(DolibabyException):
-    output: str | None
-
-    def __init__(self, output: str | None):
-        super().__init__(
-            f"Cleanup for the exploit returned an invalid exit code: {output}"
-        )
-        self.output = output
